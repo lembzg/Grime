@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Finance Dashboard · Send</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="user">
+        <div class="avatar">A</div>
+        <div class="user-meta">
+          <p class="subtitle">Send money</p>
+          <p class="title">Cross‑border</p>
+        </div>
+      </div>
+      <button class="icon-btn" aria-label="Notifications">
+        <span class="dot"></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2a6 6 0 0 0-6 6v3.09l-.94 2.35A1 1 0 0 0 6 15h12a1 1 0 0 0 .94-1.56L18 11.09V8a6 6 0 0 0-6-6Z"></path>
+          <path d="M9.17 18a3 3 0 0 0 5.66 0"></path>
+        </svg>
+      </button>
+    </header>
+
+    <main>
+      <div class="send-header">
+        <input class="send-amount-input" aria-label="Amount" value="200 €" placeholder="0.00" />
+        <p class="send-sub">£169.17</p>
+      </div>
+
+      <div style="text-align:center; margin-bottom:24px;">
+        <span class="account-pill">
+          <span class="flag" aria-hidden="true"></span>
+          Main · £2,525
+          <span aria-hidden="true">▾</span>
+        </span>
+      </div>
+
+      <div class="note-row">
+        <input class="note-input" placeholder="Add note" aria-label="Add note">
+        <div class="note-actions">
+          <span class="icon-chip" aria-label="Calendar">📅</span>
+          <span class="icon-chip" aria-label="Emoji">😊</span>
+          <span class="icon-chip" aria-label="Gift">🎁</span>
+        </div>
+      </div>
+
+      <div class="send-actions">
+        <button class="circle" aria-label="Schedule">⌛</button>
+        <button class="cta">Send</button>
+      </div>
+    </main>
+
+    <nav class="tabbar" aria-label="Primary">
+      <a class="tab" href="index.html">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-5v-5H10v5H5a1 1 0 0 1-1-1v-8.5Z"></path></svg>
+        <span>Home</span>
+      </a>
+      <a class="tab active" href="send.html">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 18-7-6 16-3-6-6-3Z"></path></svg>
+        <span>Send</span>
+      </a>
+      <a class="tab" href="add-recipient.html">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Zm0 2.18L19 8l-7 3.89L5 8l7-3.82Zm0 17.64L5 16V9.26l7 3.89 7-3.89V16l-7 3.82Z"></path></svg>
+        <span>Recipients</span>
+      </a>
+      <a class="tab" href="invest.html">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h4v14H4V5Zm6 4h4v10h-4V9Zm6-6h4v16h-4V3Z"></path></svg>
+        <span>Invest</span>
+      </a>
+    </nav>
+  </div>
+</body>
+</html>

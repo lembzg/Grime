@@ -1,4 +1,3 @@
-# backend/app.py - FINAL WORKING VERSION
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
@@ -25,9 +24,7 @@ jwt = JWTManager(app)
 # Initialize Email Service
 email_service = EmailService()
 
-# MongoDB Atlas Connection with YOUR password
 try:
-    # FIXED: Added database name and proper parameters
     ATLAS_URI = "mongodb+srv://CorvoMangaer:abcd4321@hackathonoxford.9junkcs.mongodb.net/transaction_app?retryWrites=true&w=majority&appName=HackathonOxford"
     client = MongoClient(ATLAS_URI, serverSelectionTimeoutMS=5000)
     
@@ -101,19 +98,18 @@ def register():
             'name': name,
             'password': hashed_password,
             'created_at': datetime.utcnow(),
-            'verified': True,  # Set to True for hackathon (skip email verification)
+            'verified': False,  
             'balance': 0.0
         }
         
         users_col.insert_one(user)
         
-        # Skip email verification for hackathon (comment out to enable)
-        # success, activation_code = email_service.send_activation_email(email, user_id)
-        # if success:
-        #     users_col.update_one(
-        #         {'_id': user_id},
-        #         {'$set': {'activation_code': activation_code}}
-        #     )
+        success, activation_code = email_service.send_activation_email(email, user_id)
+        if success:
+            users_col.update_one(
+                {'_id': user_id},
+                {'$set': {'activation_code': activation_code}}
+            )
         
         # Create JWT token
         access_token = create_access_token(identity=user_id)
@@ -153,9 +149,8 @@ def login():
         if not bcrypt.check_password_hash(user['password'], password):
             return jsonify({'error': 'Invalid credentials'}), 401
         
-        # Skip verification check for hackathon
-        # if not user.get('verified', False):
-        #     return jsonify({'error': 'Please verify your email first'}), 403
+        if not user.get('verified', False):
+            return jsonify({'error': 'Please verify your email first'}), 403
         
         # Create token
         access_token = create_access_token(identity=str(user['_id']))
@@ -194,8 +189,12 @@ def verify_email():
         if user.get('verified'):
             return jsonify({'message': 'Email already verified'}), 200
         
-        # Verify code - FIXED: Check against stored code or use EmailService
-        if email_service.verify_activation_code(user_id, code) or user.get('activation_code') == code:
+        # FIX: Check stored code in MongoDB AND EmailService memory
+        stored_code = user.get('activation_code')
+        email_service_valid = email_service.verify_activation_code(user_id, code)
+        
+        # Accept if code matches either stored code OR EmailService memory
+        if stored_code == code or email_service_valid:
             users_col.update_one(
                 {'_id': user_id},
                 {'$set': {'verified': True, 'verified_at': datetime.utcnow()}}

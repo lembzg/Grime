@@ -120,7 +120,7 @@ def register():
                 'id': user_id,
                 'email': email,
                 'name': name,
-                'verified': True,
+                'verified': False,
                 'balance': 0.0
             },
             'message': 'Registration successful'

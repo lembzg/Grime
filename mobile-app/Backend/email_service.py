@@ -118,7 +118,7 @@ class EmailService:
                 with open(image_path, 'rb') as img_file:
                     img = MIMEImage(img_file.read())
                     img.add_header('Content-ID', '<embedded_logo>')
-                    img.add_header('Content-Disposition', 'inline', filename='logo.png')
+                    img.add_header('Content-Disposition', 'inline', filename='Corzo_Logo.jpeg')
                     msg.attach(img)
             else:
                 # If no image file exists, we'll use a placeholder in the HTML
@@ -147,10 +147,10 @@ class EmailService:
         """
         # Default locations to check for logo
         possible_paths = [
-            'static/images/logo.png',
-            'static/logo.png',
-            'logo.png',
-            os.path.join(os.path.dirname(__file__), 'logo.png')
+            'static/images/Corzo_Logo.jpeg',
+            'static/Corzo_Logo.jpeg',
+            'Corzo_Logo.jpeg',
+            os.path.join(os.path.dirname(__file__), 'Corzo_Logo.jpeg')
         ]
         
         for path in possible_paths:
@@ -209,7 +209,10 @@ class EmailService:
                     padding: 20px 0;
                 }}
                 .logo {{
-                    max-width: 150px;
+                    padding: 30px;
+                    border-radius: 10px;
+                    margin: 20px 0;
+                    max-width: 600px;
                     height: auto;
                 }}
                 .content {{

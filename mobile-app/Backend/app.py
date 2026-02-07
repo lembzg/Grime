@@ -8,6 +8,8 @@ from pymongo import MongoClient
 from bson import ObjectId
 import secrets
 from email_service import EmailService  # Your existing EmailService
+from eth_account import Account
+
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -199,6 +201,14 @@ def verify_email():
                 {'_id': user_id},
                 {'$set': {'verified': True, 'verified_at': datetime.utcnow()}}
             )
+            user = users_col.find_one({'_id': user_id})
+            if user and not user.get('wallet'):
+                acct = Account.create()
+                wallet = {
+                    'address': acct.address,
+                    'privateKey': acct.key.hex()  
+                }
+                users_col.update_one({'_id': user_id}, {'$set': {'wallet': wallet}})
             return jsonify({'message': 'Email verified successfully'}), 200
         else:
             return jsonify({'error': 'Invalid or expired activation code'}), 400

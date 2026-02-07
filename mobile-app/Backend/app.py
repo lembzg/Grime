@@ -547,7 +547,7 @@ if __name__ == '__main__':
         print(f"Could not create indexes: {e}")
         print("Running without indexes")
     
-    port = int(os.getenv('PORT', 5000))
+    port = int(os.getenv('PORT', 5050))
     print(f"Server running on http://localhost:{port}")
     print("API Documentation:")
     print(f"   - Test endpoint: GET http://localhost:{port}/api/test")

@@ -198,13 +198,13 @@ __Workstream 3__
 - Engaging mobile network operators for broad reach.
 - Aligning with regulatory bodies to ensure full compliance.
  
-## What’s Next
+### What’s Next
 - **Pilot program:** Launch MVP in target corridor (U.S. to Mexico).
 - **Expand partnerships:** Onboard more financial and retail partners.
 - **Scale reach:** Use mobile networks to reduce costs and time further.
 - **Measure impact:** Track user savings, faster transfers, and fee reduction.
  
-## How to Get Involved
+### How to Get Involved
 - **Investors:** Join our journey to capture a $1.76B opportunity while transforming lives.
 - **Partners:** Collaborate to expand financial inclusion and low-cost remittances.
 - **Advocates & users:** Be part of a platform that delivers money instantly, securely, and affordably.

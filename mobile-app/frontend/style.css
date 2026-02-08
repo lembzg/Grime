@@ -534,6 +534,17 @@ main {
   margin-top: 10px;
 }
 
+.recipient-check {
+  font-size: 18px;
+  color: #22c55e;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.recipient-check.visible {
+  opacity: 1;
+}
+
 .icon-chip {
   width: 44px;
   height: 44px;
@@ -967,4 +978,14 @@ main {
     opacity: 0;
     transform: translateY(-10px);
   }
+}
+
+/* Recipient existence tick */
+.recipient-check{opacity:0; color:green; font-weight:700;}
+
+/* recipient tick default (white), JS will set green on success */
+.recipient-check{
+  color: #fff;
+  opacity: 0;
+  font-weight: 700;
 }

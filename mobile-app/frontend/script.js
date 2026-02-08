@@ -36,11 +36,19 @@ function updateUserInfo() {
 
 // Update the logout function to clear data properly
 function logout() {
-    // Clear localStorage
+    // Clear localStorage/session data
+    localStorage.removeItem('userId');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('email');
+    localStorage.removeItem('username');
+
+    // Reset visible balance immediately (if present)
+    const bal = document.getElementById('totalBalance');
+    if (bal) bal.textContent = '£0.00';
+
     // Redirect to login
-    window.location.href = 'login-register.html';
+    window.location.replace('login.html');
 }
 
 // Call updateUserInfo when page loads
@@ -99,4 +107,26 @@ document.addEventListener('keydown', function(event) {
       }, 200);
     }
   }
+});
+
+// -----------------------------
+// Dashboard balance auto-refresh
+// -----------------------------
+async function refreshBalanceForCurrentUser() {
+  // Prefer the on-chain balance helper exposed by plasma.js
+  if (typeof window.fetchAndRenderWalletBalance === 'function') {
+    await window.fetchAndRenderWalletBalance();
+  } else if (typeof window.loadBalanceFromChain === 'function') {
+    await window.loadBalanceFromChain();
+  }
+}
+
+// Run on normal load and when returning from bfcache
+window.addEventListener('pageshow', () => {
+  refreshBalanceForCurrentUser();
+});
+
+// Refresh when tab regains focus
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) refreshBalanceForCurrentUser();
 });

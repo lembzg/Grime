@@ -6,6 +6,8 @@
   <title>Finance Dashboard · Send</title>
   <link rel="stylesheet" href="style.css">
   <script src="script.js"></script>
+  <script type="module" src="./modules.js"></script>
+
 </head>
 <body>
   <div class="app-shell">
@@ -56,29 +58,26 @@
       <div class="screen active">
       <div class="send-header">
         <h1 class="send-title">Send Money</h1>
-        <input class="send-amount-input" aria-label="Amount" value="200 €" placeholder="0.00" />
-        <p class="send-sub">£169.17</p>
+
+      <div class="note-row" style="margin-top:12px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input id="recipient" class="note-input" placeholder="Recipient username or email" />
+          <span id="recipientCheck" class="recipient-check" aria-hidden="true">✓</span>
+        </div>
+      </div>
+        <input id="amountInput" class="send-amount-input" aria-label="Amount" value="1.00" placeholder="0.00" />
+        <p class="send-sub" id="sendBalance">£0.00</p>
       </div>
     </div>
-      <div style="text-align:center; margin-bottom:24px;">
-        <span class="account-pill">
-          <span class="flag" aria-hidden="true"></span>
-          Main · £2,525
-          <span aria-hidden="true">▾</span>
-        </span>
-      </div>
+    
 
       <div class="note-row">
         <input class="note-input" placeholder="Add note" aria-label="Add note">
         <div class="note-actions">
-          <span class="icon-chip" aria-label="Calendar">📅</span>
-          <span class="icon-chip" aria-label="Emoji">😊</span>
-          <span class="icon-chip" aria-label="Gift">🎁</span>
         </div>
       </div>
 
       <div class="send-actions">
-        <button class="circle" aria-label="Schedule">⌛</button>
         <button id="sendBtn" class="cta">Send</button>
       </div>
       <p id="txStatus"></p>
@@ -105,5 +104,14 @@
   </div>
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.umd.min.js"></script>
   <script src="plasma.js"></script>
+  <script type="module">
+    import { initApp, loadDashboardData } from './modules.js';
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        initApp();
+        // Dashboard data loads automatically via initApp
+    });
+</script>
 </body>
+
 </html>

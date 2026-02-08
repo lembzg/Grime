@@ -119,8 +119,8 @@ const UIModule = {
     
     // Update dashboard with data
     updateDashboard(data) {
-        // Update balance
-        const balanceEl = document.querySelector('.balance');
+        // Update balance (placeholder; on-chain refresh happens in plasma.js)
+        balanceEl = document.querySelector('#totalBalance');
         if (balanceEl) {
             balanceEl.textContent = this.formatCurrency(data.balance);
         }
@@ -180,13 +180,11 @@ function initApp() {
     
     if (protectedPages.includes(currentPage)) {
         AuthModule.requireAuth();
-    }
-    
-    // Load dashboard data on dashboard pages
-    if (currentPage === 'index.html') {
+        fetchAndRenderWalletBalance();
         loadDashboardData();
     }
     
+  
     // Test backend connection
     testBackendConnection();
 }

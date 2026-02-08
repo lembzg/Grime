@@ -6,6 +6,8 @@
   <title>Finance Dashboard · Invest</title>
   <link rel="stylesheet" href="style.css">
   <script src="script.js"></script>
+  <script type="module" src="./modules.js"></script>
+
 </head>
 <body>
   <div class="app-shell">
@@ -125,5 +127,13 @@
       </a>
     </nav>
   </div>
+  <script type="module">
+    import { initApp, loadDashboardData } from './modules.js';
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        initApp();
+        // Dashboard data loads automatically via initApp
+    });
+</script>
 </body>
 </html>

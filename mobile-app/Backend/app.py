@@ -13,6 +13,7 @@ import requests
 import time
 from eth_account.messages import encode_typed_data
 from web3 import Web3
+import re
 
 
 # Initialize Flask app
@@ -95,6 +96,11 @@ def create_reset_token():
     return secrets.token_urlsafe(32)
 
 def get_end_user_ip():
+    # Browser can't set X-Forwarded-For, so allow a dev header
+    xci = request.headers.get("X-Client-IP", "")
+    if xci:
+        return xci.split(",")[0].strip()
+
     xff = request.headers.get("X-Forwarded-For", "")
     if xff:
         return xff.split(",")[0].strip()
@@ -624,13 +630,30 @@ def usdt_transfer_gasless():
         data = request.json or {}
         user_id = (data.get("userId") or "").strip()
         to_addr = (data.get("to") or "").strip()
+        recipient = (data.get("recipient") or "").strip()
         amount_str = str(data.get("amount") or "").strip()
 
         # 1) Required fields
-        if not user_id or not to_addr or not amount_str:
+        if not user_id or not amount_str or (not to_addr and not recipient):
             return jsonify({
-                "error": "Missing required field (userId, to, amount)"
+                "error": "Missing required field (userId, recipient/to, amount)"
             }), 400
+
+        # 1b) Resolve recipient by email/name (so UI can send by username/email)
+        if recipient and not to_addr:
+            q = recipient.strip()
+            if "@" in q:
+                dest_user = users_col.find_one({"email": q})
+            else:
+                dest_user = users_col.find_one({"name": {"$regex": f"^{re.escape(q)}$", "$options": "i"}})
+            if not dest_user:
+                return jsonify({"error": "Recipient not found"}), 404
+            if str(dest_user.get("_id")) == user_id:
+                return jsonify({"error": "Cannot send to yourself"}), 400
+            dest_wallet = dest_user.get("wallet") or {}
+            to_addr = (dest_wallet.get("address") or "").strip()
+            if not to_addr:
+                return jsonify({"error": "Recipient wallet not created"}), 409
 
         # 2) Address format
         if not to_addr.startswith("0x") or len(to_addr) != 42:
@@ -868,5 +891,20 @@ if __name__ == '__main__':
     print(f"   - Health: GET http://localhost:{port}/api/health")
     
     app.run(debug=True, host='0.0.0.0', port=port)
-    
-    
+
+
+@app.get("/api/users/exists")
+def users_exists():
+    q = (request.args.get("query") or "").strip()
+    if not q:
+        return jsonify({"exists": False}), 200
+
+    # email lookup
+    if "@" in q:
+        u = users_col.find_one({"email": q})
+        return jsonify({"exists": bool(u)}), 200
+
+    # username/name lookup (case-insensitive exact match)
+    u = users_col.find_one({"name": {"$regex": f"^{re.escape(q)}$", "$options": "i"}})
+    return jsonify({"exists": bool(u)}), 200
+

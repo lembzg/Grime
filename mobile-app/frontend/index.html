@@ -55,13 +55,10 @@
     </header>
 
     <main>
-      <button onclick="checkAddress()">Connect Wallet</button>
-      <button onclick="switchPlasma()">Switch Plasma</button>
-      <p id="chainStatus" class="status-text">hi im testing it</p>
       <section class="screen active" aria-label="Home">
         <div class="card balance-card">
           <div class="label">Total Balance</div>
-          <div class="balance">$21000000000.40</div>
+          <div class="balance" id="totalBalance">Loading…</div>
           <div class="pill-row">
             <span class="pill positive">▲ 4.3% this week</span>
             <span class="pill">Multi‑account</span>

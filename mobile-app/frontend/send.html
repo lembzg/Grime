@@ -5,15 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Finance Dashboard · Send</title>
   <link rel="stylesheet" href="style.css">
+  <script src="script.js"></script>
 </head>
 <body>
   <div class="app-shell">
 <header class="topbar">
-      <div class="user">
-        <div class="avatar">A</div>
-        <div class="user-meta">
-          <p class="subtitle">Good afternoon</p>
-          <p class="title">Alex Carter</p>
+      <div class="avatar-dropdown">
+        <button class="avatar-btn" onclick="toggleAvatarMenu()">
+          <div class="avatar">A</div>
+        </button>
+        
+        <div class="avatar-menu" id="avatarMenu">
+          <div class="menu-header">
+            <div class="user-info">
+              <div class="avatar-small">A</div>
+              <div>
+                <div class="user-name">TOLGA</div>
+                <div class="user-email">tolga@example.com</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="menu-items">
+            <a href="profile.html" class="menu-item">
+              <span>Profile</span>
+            </a>
+            
+            <a href="settings.html" class="menu-item">
+              <span>Settings</span>
+            </a>
+            
+            <div class="menu-divider"></div>
+            
+            <button class="menu-item logout" onclick="logout()">
+              <span>Logout</span>
+            </button>
+          </div>
         </div>
       </div>
       <button class="icon-btn" aria-label="Notifications">

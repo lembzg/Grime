@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Finance Dashboard · Sign In</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="login-shell">
+    <header class="topbar">
+      <div class="user">
+        <img src="CorzoLogoEmpty.png" class="logo">
+      </div>
+      <button class="icon-btn" aria-label="Close" onclick="window.location.href='login-register.html'">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
+        </svg>
+      </button>
+    </header>
+
+    <main class="centered-div">
+      <div class="screen active">
+        <!-- ✅ ADD FORM WITH ID -->
+        <form id="loginForm" class="card-form">
+          <div class="form-header">
+            <a href="login-register.html" class="icon-btn" aria-label="Back" style="text-decoration: none">
+              ←
+            </a>
+          </div>
+
+          <h1 class="form-title">Sign In</h1>
+          <p class="form-sub">Enter your credentials to access your account</p>
+
+          <div class="input-stack">
+            <div class="field">
+              <div>
+                <small>Email address</small>
+                <!-- ✅ ADD NAME ATTRIBUTE -->
+                <input type="email" name="email" placeholder="you@example.com" aria-label="Email address" required>
+              </div>
+              <span class="ghost-icon" aria-label="Email">📧</span>
+            </div>
+
+            <div class="field">
+              <div>
+                <small>Password</small>
+                <!-- ✅ ADD NAME ATTRIBUTE -->
+                <input type="password" name="password" placeholder="••••••••" aria-label="Password" required>
+              </div>
+              <span class="ghost-icon" aria-label="Show password">👁</span>
+            </div>
+          </div>
+
+          <div class="form-options">
+            <label class="checkbox">
+              <input type="checkbox" aria-label="Remember me">
+              <span>Remember me</span>
+            </label>
+            <a href="#" class="text-btn">Forgot password?</a>
+          </div>
+
+          <!-- ✅ REMOVE onclick, ADD type="submit" -->
+          <button type="submit" class="cta-wide">Sign In</button>
+          
+          <p class="text-center">
+            Don't have an account? 
+            <a href="register.html" class="link">Sign up</a>
+          </p>
+        </form>
+
+        <div class="card" style="margin-top: 20px;">
+          <div class="label">Secure Login</div>
+          <div class="pill-row">
+            <span class="pill">🔐 256-bit encryption</span>
+            <span class="pill">🛡️ 2FA available</span>
+          </div>
+          <p class="sub" style="margin-top: 8px;">
+            Your security is our priority. All data is encrypted end-to-end.
+          </p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { api } from './api.js';
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const loginForm = document.getElementById('loginForm');
+        const submitBtn = loginForm.querySelector('.cta-wide');
+        
+        loginForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Show loading state
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Signing in...';
+            
+            const formData = new FormData(loginForm);
+            const credentials = {
+                email: formData.get('email'),
+                password: formData.get('password')
+            };
+            
+            console.log('Attempting login with:', credentials.email);
+            
+            try {
+                const result = await api.login(credentials);
+                
+                console.log('Login successful:', result.user.email);
+                
+                // Store token and user
+                localStorage.setItem('token', result.token);
+                localStorage.setItem('user', JSON.stringify(result.user));
+                
+                // Redirect to dashboard
+                window.location.href = 'index.html';
+                
+            } catch (error) {
+                console.error('Login failed:', error.message);
+                alert('Login failed: ' + error.message);
+                
+                // Reset button
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        });
+    });
+  </script>
+</body>
+</html>

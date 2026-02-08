@@ -18,7 +18,7 @@ class EmailService:
     Handles sign-in verification emails and password reset emails.
     """
     
-    def __init__(self):
+    def __init__(self,db=None):
         """
         Initialize the email service.   
         
@@ -35,7 +35,7 @@ class EmailService:
         self.sender_email= "corzoapp@gmail.com"
         self.sender_password= "osexcuaehoztlcat"
         self.app_name = "CorzoApp"
-        self.base_url = "http://localhost:5050"
+        self.base_url = "http://localhost:8000"
         
         # Configure logging
         logging.basicConfig(level=logging.INFO)
@@ -48,6 +48,7 @@ class EmailService:
         # Default expiration times (in hours)
         self.activation_expiry_hours = 24
         self.reset_expiry_hours = 1
+        self.db = db
     
     def _create_activation_code(self, length: int = 6) -> str:
         """Generate a random activation code."""
@@ -135,6 +136,21 @@ class EmailService:
             
         except Exception as e:
             self.logger.error(f"Failed to send email to {recipient}: {str(e)}")
+    
+            print(f"EMAIL ERROR DETAILS: {type(e).__name__}")
+            print(f"EMAIL ERROR MESSAGE: {str(e)}")
+            
+            # Check for common issues:
+            if "authentication failed" in str(e).lower():
+                print("AUTHENTICATION FAILED - Check email/password")
+                print("For Gmail, use App Password, not your regular password")
+                print("Go to: https://myaccount.google.com/apppasswords")
+            elif "connection refused" in str(e).lower():
+                print("CONNECTION REFUSED - Check SMTP settings")
+                print("Gmail SMTP: smtp.gmail.com:587")
+            elif "timed out" in str(e).lower():
+                print("TIMEOUT - Check internet connection")
+            
             return False
     
     def _get_embedded_image_path(self) -> Optional[str]:
@@ -422,32 +438,48 @@ class EmailService:
         © {datetime.now().year} {self.app_name}. All rights reserved.
         This email was sent to {context.get('email', '')}
         """
-    
     def send_activation_email(self, email: str, user_id: str) -> tuple:
-        """
-        Send activation email with verification code.
-        
-        Args:
-            email: User's email address
-            user_id: User's unique identifier
-            
-        Returns:
-            tuple: (success, code) or (success, error_message)
-        """
+        """Send activation email with verification code"""
         try:
             # Generate activation code
             activation_code = self._create_activation_code()
-            
-            # Store code with expiration
             expiry_time = datetime.now() + timedelta(hours=self.activation_expiry_hours)
-            self.activation_codes[user_id] = {
-                'code': activation_code,
-                'email': email,
-                'expires_at': expiry_time,
-                'used': False
-            }
             
-            # Prepare email context
+            # Store in MongoDB if available
+            if self.db is not None:
+                # FIX: Make sure self.db is a database connection, not a boolean
+                # Check if self.db has a sessions collection
+                if hasattr(self.db, 'sessions'):
+                    self.db.sessions.update_one(
+                        {'user_id': user_id, 'type': 'activation'},
+                        {'$set': {
+                            'code': activation_code,
+                            'email': email,
+                            'expires_at': expiry_time,
+                            'used': False,
+                            'created_at': datetime.now(),
+                            'type': 'activation'
+                        }},
+                        upsert=True
+                    )
+                else:
+                    # Fallback to memory
+                    self.activation_codes[user_id] = {
+                        'code': activation_code,
+                        'email': email,
+                        'expires_at': expiry_time,
+                        'used': False
+                    }
+            else:
+                # No database connection, use memory
+                self.activation_codes[user_id] = {
+                    'code': activation_code,
+                    'email': email,
+                    'expires_at': expiry_time,
+                    'used': False
+                }
+            
+            # Send email
             context = {
                 'code': activation_code,
                 'email': email,
@@ -455,22 +487,21 @@ class EmailService:
                 'expiry_hours': self.activation_expiry_hours
             }
             
-            # Get templates
             html_body, text_body = self._get_email_template('activation', context)
-            
-            # Send email
             subject = f"Activate Your {self.app_name} Account"
             success = self._send_email(email, subject, html_body, text_body)
             
             if success:
-                return True, activation_code
+                return True, activation_code  # ✅ Returns actual code
             else:
-                return False, "Failed to send activation email"
+                return False, activation_code  # ✅ Still return the code (email failed but code exists)
                 
         except Exception as e:
             self.logger.error(f"Error sending activation email to {email}: {str(e)}")
-            return False, str(e)
-    
+            # Still generate a code even if email fails
+            activation_code = self._create_activation_code()
+            return False, activation_code  # ✅ Return code, not error message
+
     def send_password_reset_email(self, email: str, user_id: str) -> tuple:
         """
         Send password reset email with reset link.
@@ -523,31 +554,38 @@ class EmailService:
             return False, str(e)
     
     def verify_activation_code(self, user_id: str, code: str) -> bool:
-        """
-        Verify if activation code is valid.
-        
-        Args:
-            user_id: User's unique identifier
-            code: Activation code to verify
-            
-        Returns:
-            bool: True if code is valid, False otherwise
-        """
-        if user_id not in self.activation_codes:
+        """Verify if activation code is valid"""
+        if self.db is not None:
+            # Check MongoDB
+            session = self.db.sessions.find_one({
+                'user_id': user_id,
+                'type': 'activation',
+                'code': code,
+                'used': False,
+                'expires_at': {'$gt': datetime.now()}
+            })
+            if session:
+                # Mark as used
+                self.db.sessions.update_one(
+                    {'_id': session['_id']},
+                    {'$set': {'used': True}}
+                )
+                return True
             return False
-        
-        data = self.activation_codes[user_id]
-        
-        # Check if code matches and is not expired
-        if (data['code'] == code and 
-            not data['used'] and 
-            datetime.now() < data['expires_at']):
+        else:
+            # Check memory
+            if user_id not in self.activation_codes:
+                return False
             
-            # Mark as used
-            data['used'] = True
-            return True
-        
-        return False
+            data = self.activation_codes[user_id]
+            if (data['code'] == code and 
+                not data['used'] and 
+                datetime.now() < data['expires_at']):
+                data['used'] = True
+                return True
+            
+            return False
+    
     
     def verify_reset_token(self, user_id: str, token: str) -> bool:
         """
@@ -598,10 +636,5 @@ class EmailService:
         
         self.logger.info(f"Cleaned up {len(expired_users)} expired codes")
 
-
-if __name__ == "__main__":
-    # Configuration (use environment variables in production)
-    es = EmailService()
-    success = es.send_activation_email("fdf@gmail.com","gdaga")
 
 

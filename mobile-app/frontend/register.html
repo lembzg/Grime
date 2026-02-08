@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Finance Dashboard · Sign Up</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="./modules.js"></script>
+  </head>
+  <body>
+    <div class="login-shell">
+      <header class="topbar">
+        <div class="user">
+          <img src="CorzoLogoEmpty.png" class="logo" />
+        </div>
+        <button
+          class="icon-btn"
+          aria-label="Close"
+          onclick="window.location.href = 'login-register.html'"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+            ></path>
+          </svg>
+        </button>
+      </header>
+
+      <main class="centered-div">
+        <div class="screen active">
+          <form id="registerForm" class="card-form">
+            <div class="form-header">
+              <a
+                href="login-register.html"
+                class="icon-btn"
+                aria-label="Back"
+                style="text-decoration: none"
+              >
+                ←
+              </a>
+            </div>
+
+            <h1 class="form-title">Create Account</h1>
+            <p class="form-sub">Start managing your finances securely</p>
+
+            <div class="input-stack">
+              <div class="field">
+                <div>
+                  <small>Name</small>
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Alex"
+                    required
+                  />
+                </div>
+              </div>
+              <!--
+                <div class="field">
+                <div>
+                  <small>Last name</small>
+                  <input
+                    type="text"
+                    name="Last_name"
+                    placeholder="Carter"
+                    required
+                  />
+                </div>
+              </div>
+              -->
+
+              <div class="field">
+                <div>
+                  <small>Email address</small>
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="you@example.com"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div class="field">
+                <div>
+                  <small>Phone number</small>
+                  <input
+                    type="tel"
+                    name="phone"
+                    placeholder="+1 (555) 123-4567"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div class="field">
+                <div>
+                  <small>Create password</small>
+                  <input
+                    type="password"
+                    name="password"
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
+                <span class="ghost-icon" aria-label="Show password">👁</span>
+              </div>
+
+              <div class="field">
+                <div>
+                  <small>Confirm password</small>
+                  <input
+                    type="password"
+                    name="confirm_password"
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
+                <span class="ghost-icon" aria-label="Show password">👁</span>
+              </div>
+            </div>
+
+            <div class="form-options">
+              <label class="checkbox">
+                <input type="checkbox" aria-label="Agree to terms" required />
+                <span
+                  >I agree to the
+                  <a href="#" class="link">Terms of Service</a> and
+                  <a href="#" class="link">Privacy Policy</a></span
+                >
+              </label>
+              <label class="checkbox">
+                <input type="checkbox" aria-label="Subscribe to newsletter" />
+                <span>Join our Newsletter</span>
+              </label>
+            </div>
+
+            <button type="submit" class="cta-wide">Create Account</button>
+
+            <p class="text-center">
+              Already have an account?
+              <a href="login.html" class="link">Sign in</a>
+            </p>
+          </form>
+
+          <div class="card" style="margin-top: 20px">
+            <div class="label">Why join FinFlow?</div>
+            <ul class="benefits-list">
+              <li>✅ No monthly fees</li>
+              <li>✅ Instant global transfers</li>
+              <li>✅ Smart investment tools</li>
+              <li>✅ 24/7 customer support</li>
+            </ul>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script type="module">
+        import { api } from './api.js';
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('registerForm');
+            const submitBtn = form.querySelector('.cta-wide');
+            
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Get form data
+                const formData = new FormData(form);
+                const data = {
+                    name: formData.get('name'),
+                    email: formData.get('email'),
+                    password: formData.get('password')
+                    // Phone is optional
+                };
+                
+                // Validation
+                if (formData.get('password') !== formData.get('confirm_password')) {
+                    alert('Passwords do not match!');
+                    return;
+                }
+                
+                if (!data.name || !data.email || !data.password) {
+                    alert('Please fill all required fields');
+                    return;
+                }
+                
+                try {
+                    // Show loading
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Creating account...';
+                    
+                    // Use api.js function
+                    const result = await api.register(data);
+                    
+                    alert('Registration successful! Check your email for activation code.');
+                    
+                    // Store token if provided
+                    if (result.token) {
+                        localStorage.setItem('token', result.token);
+                        localStorage.setItem('user', JSON.stringify(result.user));
+                    }
+                    
+                    // Redirect to verification page
+                    window.location.href = 'verify-email.html';
+                    
+                } catch (error) {
+                    alert('Error: ' + error.message);
+                    console.error('Registration error:', error);
+                } finally {
+                    // Reset button
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Create Account';
+                }
+            });
+        });
+    </script>
+  </body>
+</html>

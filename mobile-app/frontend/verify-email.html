@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Verify Email</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="login-shell">
+        <main class="centered-div">
+            <div class="screen active">
+                <div class="card-form">
+                    <h1 class="form-title">Verify Your Email</h1>
+                    <p class="form-sub">Enter the 6-digit code sent to your email</p>
+                    
+                    <div class="input-stack">
+                        <div class="field">
+                            <div>
+                                <small>Activation Code</small>
+                                <input type="text" id="activationCode" placeholder="123456" maxlength="6">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="cta-wide" id="verifyBtn">Verify Email</button>
+                    <button class="cta-wide secondary" id="resendBtn">Resend Code</button>
+                    
+                    <p id="message" class="text-center"></p>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script type="module">
+        import { api } from './api.js';
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const verifyBtn = document.getElementById('verifyBtn');
+            const resendBtn = document.getElementById('resendBtn');
+            const messageEl = document.getElementById('message');
+            
+            verifyBtn.addEventListener('click', async function() {
+                const code = document.getElementById('activationCode').value;
+                
+                if (!code || code.length !== 6) {
+                    showMessage('Please enter a valid 6-digit code', 'error');
+                    return;
+                }
+                
+                try {
+                    verifyBtn.disabled = true;
+                    verifyBtn.textContent = 'Verifying...';
+                    
+                    await api.verifyEmail(code);
+                    
+                    showMessage('Email verified successfully!', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1500);
+                    
+                } catch (error) {
+                    showMessage(error.message || 'Verification failed', 'error');
+                } finally {
+                    verifyBtn.disabled = false;
+                    verifyBtn.textContent = 'Verify Email';
+                }
+            });
+            
+            resendBtn.addEventListener('click', async function() {
+                try {
+                    resendBtn.disabled = true;
+                    await api.resendActivation();
+                    showMessage('Activation code resent to your email', 'success');
+                } catch (error) {
+                    showMessage(error.message || 'Failed to resend code', 'error');
+                } finally {
+                    setTimeout(() => {
+                        resendBtn.disabled = false;
+                    }, 30000); // 30 second cooldown
+                }
+            });
+            
+            function showMessage(text, type) {
+                messageEl.textContent = text;
+                messageEl.style.color = type === 'success' ? '#4ade80' : '#ef4444';
+            }
+        });
+    </script>
+</body>
+</html>

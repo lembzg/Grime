@@ -13,18 +13,22 @@ from eth_account import Account
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
-
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ["http://localhost:8000", "http://127.0.0.1:8000"], 
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', secrets.token_hex(32))
 
-# Initialize extensions
+# Initialize extensions  
 bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
 # Initialize Email Service
-email_service = EmailService()
 
 try:
     ATLAS_URI = "mongodb+srv://CorvoMangaer:abcd4321@hackathonoxford.9junkcs.mongodb.net/transaction_app?retryWrites=true&w=majority&appName=HackathonOxford"
@@ -41,12 +45,17 @@ try:
     
     # Test collections exist, create if not
     collections = db.list_collection_names()
+    
     if 'users' not in collections:
         db.create_collection('users')
     if 'transactions' not in collections:
         db.create_collection('transactions')
     if 'sessions' not in collections:
         db.create_collection('sessions')
+
+    email_service = EmailService(db=db)
+
+
         
 except Exception as e:
     print(f"MongoDB Connection Failed: {e}")
@@ -78,6 +87,7 @@ def register():
     """Register a new user"""
     try:
         data = request.json
+        phone = data.get('phone', '')
         email = data.get('email')
         name = data.get('name')
         password = data.get('password')
@@ -98,6 +108,7 @@ def register():
             '_id': user_id,
             'email': email,
             'name': name,
+            'phone': phone,
             'password': hashed_password,
             'created_at': datetime.utcnow(),
             'verified': False,  
@@ -112,7 +123,20 @@ def register():
                 {'_id': user_id},
                 {'$set': {'activation_code': activation_code}}
             )
-        
+        if not success:
+            # Fallback: Store code in sessions if email fails
+            sessions_col.update_one(
+                {'user_id': user_id, 'type': 'activation'},
+                {'$set': {
+                    'code': activation_code,
+                    'email': email,
+                    'expires_at': datetime.utcnow() + timedelta(hours=24),
+                    'used': False,
+                    'created_at': datetime.utcnow(),
+                    'type': 'activation'
+                }},
+                upsert=True
+            )
         # Create JWT token
         access_token = create_access_token(identity=user_id)
         
@@ -122,10 +146,12 @@ def register():
                 'id': user_id,
                 'email': email,
                 'name': name,
+                'phone': phone,
                 'verified': False,
                 'balance': 0.0
             },
-            'message': 'Registration successful'
+            'message': 'Registration successful. Check your email for activation code.',
+            'needs_verification': True
         }), 201
         
     except Exception as e:
@@ -170,6 +196,7 @@ def login():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
 @app.route('/api/verify-email', methods=['POST'])
 @jwt_required()
 def verify_email():
@@ -182,40 +209,53 @@ def verify_email():
         if not code:
             return jsonify({'error': 'Activation code required'}), 400
         
-        # Get user
         user = users_col.find_one({'_id': user_id})
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
-        # Check if already verified
         if user.get('verified'):
             return jsonify({'message': 'Email already verified'}), 200
         
-        # FIX: Check stored code in MongoDB AND EmailService memory
-        stored_code = user.get('activation_code')
-        email_service_valid = email_service.verify_activation_code(user_id, code)
+        # Check activation code in sessions collection
+        session_data = sessions_col.find_one({
+            'user_id': user_id,
+            'type': 'activation',
+            'code': code,
+            'used': False,
+            'expires_at': {'$gt': datetime.utcnow()}
+        })
         
-        # Accept if code matches either stored code OR EmailService memory
-        if stored_code == code or email_service_valid:
+        if session_data:
+            # Mark code as used
+            sessions_col.update_one(
+                {'_id': session_data['_id']},
+                {'$set': {'used': True}}
+            )
+            
+            # Mark user as verified
             users_col.update_one(
                 {'_id': user_id},
                 {'$set': {'verified': True, 'verified_at': datetime.utcnow()}}
             )
-            user = users_col.find_one({'_id': user_id})
-            if user and not user.get('wallet'):
+            
+            # Create Ethereum wallet
+            if not user.get('wallet'):
                 acct = Account.create()
                 wallet = {
                     'address': acct.address,
                     'privateKey': acct.key.hex()  
                 }
-                users_col.update_one({'_id': user_id}, {'$set': {'wallet': wallet}})
+                users_col.update_one(
+                    {'_id': user_id}, 
+                    {'$set': {'wallet': wallet}}
+                )
+            
             return jsonify({'message': 'Email verified successfully'}), 200
         else:
             return jsonify({'error': 'Invalid or expired activation code'}), 400
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 @app.route('/api/forgot-password', methods=['POST'])
 def forgot_password():
     """Send password reset email"""
@@ -246,7 +286,12 @@ def forgot_password():
         })
         
         # Send reset email using your EmailService
-        success, _ = email_service.send_password_reset_email(email, str(user['_id']))
+        success, email_token = email_service.send_password_reset_email(email, str(user['_id']))
+        # Use the same token for consistency
+        sessions_col.update_one(
+            {'_id': session['_id']},
+            {'$set': {'reset_token': email_token}}  # Store the same token
+        )
         
         if success:
             return jsonify({'message': 'Password reset email sent'}), 200

@@ -13,16 +13,17 @@ import requests
 import time
 from eth_account.messages import encode_typed_data
 from web3 import Web3
+import ssl
 import re
-
 
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app, resources={
     r"/api/*": {
-        "origins": ["http://localhost:8000", "http://127.0.0.1:8000"], 
+        "origins": ["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:5050", "http://127.0.0.1:5050"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
+        "allow_headers": ["Content-Type", "Authorization", "X-Client-IP"],
+        "supports_credentials": True
     }
 })
 # Configuration
@@ -44,53 +45,81 @@ bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
 # Initialize Email Service
-
 try:
-    ATLAS_URI = "mongodb+srv://CorvoMangaer:abcd4321@hackathonoxford.9junkcs.mongodb.net/transaction_app?retryWrites=true&w=majority&appName=HackathonOxford"
-    client = MongoClient(ATLAS_URI, serverSelectionTimeoutMS=5000)
+    ATLAS_URI = "mongodb+srv://CorvoMangaer:1234@hackathonoxford.9junkcs.mongodb.net/transaction_app?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true&appName=HackathonOxford"
+    client = MongoClient(
+        ATLAS_URI,
+        serverSelectionTimeoutMS=10000,
+        ssl=True,
+        tlsAllowInvalidCertificates=True
+    )
     
-    # Test connection
-    client.admin.command('ping')
-    print("Connected to MongoDB Atlas!")
+    # Test connections
+    result = client.admin.command('ping')
+    print(f"✅ Ping successful: {result}")
     
+    # List databases
+    dbs = client.list_database_names()
+    print(f"📦 Databases: {dbs}")
     db = client.transaction_app
     users_col = db.users
     transactions_col = db.transactions
     sessions_col = db.sessions
-    
-    # Test collections exist, create if not
-    collections = db.list_collection_names()
-    
-    if 'users' not in collections:
-        db.create_collection('users')
-    if 'transactions' not in collections:
-        db.create_collection('transactions')
-    if 'sessions' not in collections:
-        db.create_collection('sessions')
-
-    email_service = EmailService(db=db)
-
-
+    # Check our database
+    if 'transaction_app' in dbs:
+        db = client.transaction_app
+        collections = db.list_collection_names()
+        print(f"📁 Collections: {collections}")
         
-except Exception as e:
-    print(f"MongoDB Connection Failed: {e}")
-    print("Make sure:")
-    print("1. Your IP is whitelisted in MongoDB Atlas Network Access")
-    print("2. Database user 'CorvoMangaer' exists with password 'abcd4321'")
-    print("3. You're connected to the internet")
-    print("\nStarting with limited functionality...")
-    # Create dummy collections that will fail gracefully
-    class DummyCollection:
-        def find_one(self, *args, **kwargs): return None
-        def insert_one(self, *args, **kwargs): return type('obj', (object,), {'inserted_id': 'dummy'})()
-        def update_one(self, *args, **kwargs): pass
-        def delete_one(self, *args, **kwargs): pass
-        def find(self, *args, **kwargs): return []
-        def aggregate(self, *args, **kwargs): return []
+        # Try to insert a test user
+        test_user = {
+            "email": "test@example.com",
+            "name": "Test User",
+            "password": "hashed_password_here"
+        }
+        
+        result = db.users.insert_one(test_user)
+        print(f"✅ Insert test user: {result.inserted_id}")
+        
+        # Find it
+        found = db.users.find_one({"email": "test@example.com"})
+        print(f"✅ Found user: {found is not None}")
+        
+        # Clean up
+        db.users.delete_one({"_id": result.inserted_id})
+        print("✅ Cleaned up test user")
     
-    users_col = DummyCollection()
-    transactions_col = DummyCollection()
-    sessions_col = DummyCollection()
+except Exception as e:
+    print(f"❌ Error: {type(e).__name__}")
+    print(f"Message: {str(e)}")
+    
+    # Try without SSL
+    print("\nTrying without SSL...")
+    try:
+        uri_no_ssl = "mongodb+srv://CorvoMangaer:1234@hackathonoxford.9junkcs.mongodb.net/?retryWrites=true&w=majority&ssl=false"
+        client = MongoClient(uri_no_ssl, serverSelectionTimeoutMS=5000)
+        client.admin.command('ping')
+        print("✅ Works without SSL!")
+        db = client.transaction_app
+        users_col = db.users
+        transactions_col = db.transactions
+        sessions_col = db.sessions
+    except Exception as e2:
+        print(f"❌ Still fails: {e2}")
+try:
+    email_service = EmailService()
+except:
+        # Create a dummy email service for development
+    class DummyEmailService:
+        def send_activation_email(self, email, user_id):
+            print(f"[DUMMY] Would send activation email to {email} for user {user_id}")
+            return True, "DUMMY_ACTIVATION_CODE"
+        
+        def send_password_reset_email(self, email, user_id):
+            print(f"[DUMMY] Would send password reset email to {email} for user {user_id}")
+            return True, "DUMMY_RESET_TOKEN"
+        email_service = DummyEmailService()
+        
 
 # Helper Functions
 def create_reset_token():
@@ -243,11 +272,35 @@ def verify_email():
         if user.get('verified'):
             return jsonify({'message': 'Email already verified'}), 200
         
-        # Check activation code in sessions collection
+        # Try to verify from multiple possible locations
+        
+        # 1. Check if code matches what's stored in users collection
+        if user.get('activation_code') == code:
+            # Mark user as verified
+            users_col.update_one(
+                {'_id': user_id},
+                {'$set': {'verified': True, 'verified_at': datetime.utcnow()}}
+            )
+            
+            # Create Ethereum wallet if not exists
+            if not user.get('wallet'):
+                acct = Account.create()
+                wallet = {
+                    'address': acct.address,
+                    'privateKey': acct.key.hex()  
+                }
+                users_col.update_one(
+                    {'_id': user_id}, 
+                    {'$set': {'wallet': wallet}}
+                )
+            
+            return jsonify({'message': 'Email verified successfully'}), 200
+        
+        # 2. Check activation code in sessions collection
         session_data = sessions_col.find_one({
             'user_id': user_id,
             'type': 'activation',
-            'code': code,
+            'code': code,  # Note: using 'code' not 'activation_code'
             'used': False,
             'expires_at': {'$gt': datetime.utcnow()}
         })
@@ -265,7 +318,7 @@ def verify_email():
                 {'$set': {'verified': True, 'verified_at': datetime.utcnow()}}
             )
             
-            # Create Ethereum wallet
+            # Create Ethereum wallet if not exists
             if not user.get('wallet'):
                 acct = Account.create()
                 wallet = {
@@ -301,23 +354,25 @@ def forgot_password():
         
         # Generate reset token
         reset_token = create_reset_token()
-        expires_at = datetime.utcnow() + timedelta(hours=1)  # FIXED: Use datetime
+        expires_at = datetime.utcnow() + timedelta(hours=1)
         
         # Store reset token
-        sessions_col.insert_one({
+        session_data = {
             'user_id': str(user['_id']),
             'reset_token': reset_token,
             'expires_at': expires_at,
             'used': False,
             'created_at': datetime.utcnow()
-        })
+        }
+        result = sessions_col.insert_one(session_data)  # CHANGED: store result
         
         # Send reset email using your EmailService
         success, email_token = email_service.send_password_reset_email(email, str(user['_id']))
-        # Use the same token for consistency
+        
+        # Update with the email token - FIXED: use result.inserted_id
         sessions_col.update_one(
-            {'_id': session['_id']},
-            {'$set': {'reset_token': email_token}}  # Store the same token
+            {'_id': result.inserted_id},  # CHANGED: was session['_id']
+            {'$set': {'reset_token': email_token}}
         )
         
         if success:
@@ -327,7 +382,6 @@ def forgot_password():
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 @app.route('/api/reset-password', methods=['POST'])
 def reset_password():
     """Reset password with token"""
@@ -596,11 +650,20 @@ def resend_activation():
 @app.route('/api/test', methods=['GET'])
 def test():
     """Test if backend is working"""
-    db_status = "connected" if 'client' in globals() and client else "disconnected"
+    # Check if we have a real MongoDB connection
+    is_connected = False
+    try:
+        if 'client' in globals() and client:
+            # Actually test the connection
+            client.admin.command('ping')
+            is_connected = True
+    except:
+        is_connected = False
+    
     return jsonify({
         'message': 'Backend is working!',
-        'database': db_status,
-        'mongodb': 'connected',  # Add this
+        'database': 'connected' if is_connected else 'disconnected',
+        'mongodb': 'connected' if is_connected else 'disconnected',
         'status': 'ready',
         'timestamp': datetime.utcnow().isoformat()
     }), 200
